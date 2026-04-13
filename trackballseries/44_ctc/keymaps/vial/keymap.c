@@ -342,7 +342,7 @@ void render_space(void) {
 
 
 void render_logo(void) {
-        oled_write_P(PSTR("Track"), false);
+        oled_write_P(PSTR("Key  "), false);
         oled_write_P(PSTR("ball "), false);
         oled_write_P(PSTR("44   "), false);
 
@@ -674,19 +674,19 @@ static void slave_data(void) {
             oled_write("  0  ", false);
             break;
         case LAYER_LOWER:
-            oled_write("  1  ", false);
+            oled_write(" Num ", false);
             break;
         case LAYER_RAISE:
-            oled_write("  2  ", false);
+            oled_write(" Sym ", false);
             break;
         case LAYER_POINTER:
             oled_write("Track", false);
             break;
         case LAYER_END:
-            oled_write("  4  ", false);
+            oled_write(" Fun ", false);
             break;
         case LAYER_5:
-            oled_write("  5  ", false);
+            oled_write(" Nav ", false);
             break;
         case LAYER_6:
             oled_write("  6  ", false);
