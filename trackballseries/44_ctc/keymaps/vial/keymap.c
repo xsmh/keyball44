@@ -674,22 +674,22 @@ static void slave_data(void) {
             oled_write("  0  ", false);
             break;
         case LAYER_LOWER:
-            oled_write(" Num ", false);
+            oled_write(" FUN ", false);
             break;
         case LAYER_RAISE:
-            oled_write(" Sym ", false);
+            oled_write("GAMES", false);
             break;
         case LAYER_POINTER:
-            oled_write("Track", false);
+            oled_write("TRACK", false);
             break;
         case LAYER_END:
-            oled_write(" Fun ", false);
+            oled_write(" NUM ", false);
             break;
         case LAYER_5:
-            oled_write(" Nav ", false);
+            oled_write(" SYM ", false);
             break;
         case LAYER_6:
-            oled_write("  6  ", false);
+            oled_write(" NAV ", false);
             break;
         case LAYER_7:
             oled_write("  7  ", false);
