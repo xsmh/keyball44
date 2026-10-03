@@ -680,7 +680,7 @@ static void slave_data(void) {
             oled_write("GAMES", false);
             break;
         case LAYER_POINTER:
-            oled_write("TRACK", false);
+            oled_write("FnPtr", false);
             break;
         case LAYER_END:
             oled_write(" NUM ", false);
