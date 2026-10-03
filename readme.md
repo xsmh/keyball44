@@ -9,7 +9,7 @@ firmware代码是基于[Charybdis](https://bastardkb.com)的源码进行二次�
 
 # Firmware building steps:
 - Install qmk using pacman.
-- Clone the (Vial fork)[https://github.com/vial-kb/vial-qmk] of qmk.
+- Clone the [Vial fork](https://github.com/vial-kb/vial-qmk) of qmk.
 - Clone this MCK repo.
 - cd into the Vial fork repo and create a symlink of the MCK repo inside the keyboards folder of the Vial repo by running `ln -s MCK_REPO_PATH keyboards`
 - From the Vial repo run `git submodule update --init --recursive`
