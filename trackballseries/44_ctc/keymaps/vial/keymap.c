@@ -698,7 +698,7 @@ static void slave_data(void) {
             oled_write("  8  ", false);
             break;
         case LAYER_MOUSE:
-            oled_write("Mouse", false);
+            oled_write("MOUSE", false);
             break;
         default:
             oled_write("Undef", false);
