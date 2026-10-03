@@ -18,7 +18,7 @@ enum charybdis_keymap_layers {
     LAYER_6,
     LAYER_7,
     LAYER_8,
-    LAYER_9,
+    LAYER_MOUSE,
 };
 
 /**
@@ -185,7 +185,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                           KC_LALT,KC_LGUI,LCTL_T(KC_LNG2),LT(1,KC_SPC),LT(3,KC_LNG1),        KC_BSPC,LT(2,KC_ENT),                             KC_PSCR
   ),
 
-  [LAYER_9] = LAYOUT(
+  [LAYER_MOUSE] = LAYOUT(
   // ───────────╭────────────────────────────────────────────────                 ╭────────────────────────────────────────────────────────────────╮
        KC_ESC,     KC_ESC,    KC_1,    KC_2,    KC_3,    KC_4,                         KC_6,    KC_7,    KC_8,    KC_9,    KC_0,  KC_ESC,
   // ───────────├────────────────────────────────────────────────                 ├─────────────────────────────────────────────────────────
@@ -213,8 +213,8 @@ report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
                 //如果自动切换鼠标层的定时器为0
                 if (auto_pointer_layer_timer == 0) {
 //                    layer_on(LAYER_POINTER);
-                    //打开 LAYER_POINTER 鼠标层。
-                    layer_on(LAYER_POINTER);
+                    //打开 LAYER_MOUSE 鼠标层。
+                    layer_on(LAYER_MOUSE);
                 }
                 //更新自动切换鼠标层的定时器
                 auto_pointer_layer_timer = timer_read();
@@ -231,8 +231,8 @@ void matrix_scan_user(void) {
             // 将自动切换鼠标层的定时器重置为0
             auto_pointer_layer_timer = 0;
     //        layer_off(LAYER_POINTER);
-    //关闭 LAYER_POINTER 鼠标层
-            layer_off(LAYER_POINTER);
+    //关闭 LAYER_MOUSE 鼠标层
+            layer_off(LAYER_MOUSE);
         };
     }
 
@@ -697,7 +697,7 @@ static void slave_data(void) {
         case LAYER_8:
             oled_write("  8  ", false);
             break;
-        case LAYER_9:
+        case LAYER_MOUSE:
             oled_write("Mouse", false);
             break;
         default:
