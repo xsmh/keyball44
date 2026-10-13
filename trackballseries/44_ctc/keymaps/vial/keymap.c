@@ -256,8 +256,75 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 void rgb_matrix_update_pwm_buffers(void);
 #endif
 
+// Log last pressed key on bongocat animation screen
+static char key_buf[4] = "   ";   // 3 visible chars + NUL
+
+// HID keycodes 0x00-0x38 -> display character
+static const char PROGMEM code_to_char[] = 
+    "????ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890>*<^_-=[]\\#;'`,./";
+
+// copy a flash string into key_buf, padded with spaces to 3 chars
+static void set_key(const char *s) {
+    bool end = false;
+    for (uint8_t i = 0; i < 3; i++) {
+        char c = end ? ' ' : (char)pgm_read_byte(s + i);
+        if (c == '\0') {
+            end = true;
+            c = ' ';
+        }
+        key_buf[i] = c;
+    }
+}
+#define SHOW(s) set_key(PSTR(s))
+
+static void keylog_add(uint16_t keycode, keyrecord_t *record) {
+    if (!record->event.pressed) return;
+
+    // Tap-hold keys: only log when tapped, not held
+    if ((keycode >= QK_MOD_TAP && keycode <= QK_MOD_TAP_MAX) ||
+        (keycode >= QK_LAYER_TAP && keycode <= QK_LAYER_TAP_MAX)) {
+        if (record->tap.count == 0) return;
+        keycode &= 0xFF;
+    }
+    // Shifted/modded keys like S(KC_7)
+    if (keycode >= QK_MODS && keycode <= QK_MODS_MAX) {
+        keycode &= 0xFF;
+    }
+
+    // Special keys get a short label
+    switch (keycode) {
+        case KC_ENT:  SHOW("ENT"); return;
+        case KC_ESC:  SHOW("ESC"); return;
+        case KC_BSPC: SHOW("BSP"); return;
+        case KC_TAB:  SHOW("TAB"); return;
+        case KC_SPC:  SHOW("SPC"); return;
+        case KC_PSCR: SHOW("PRT"); return;
+        case KC_UP:   SHOW("UP");  return;
+        case KC_DOWN: SHOW("DWN"); return;
+        case KC_LEFT: SHOW("LFT"); return;
+        case KC_RGHT: SHOW("RGT"); return;
+    }
+
+    // F1-F12
+    if (keycode >= KC_F1 && keycode <= KC_F12) {
+        snprintf(key_buf, sizeof(key_buf), "F%u", (unsigned)(keycode - KC_F1 + 1));
+        for (uint8_t i = 0; i < 3; i++) {
+            if (!key_buf[i]) key_buf[i] = ' ';
+        }
+        return;
+    }
+
+    // Letters, numbers, punctuation
+    if (keycode >= 4 && keycode <= 0x38) {
+        key_buf[0] = pgm_read_byte(&code_to_char[keycode]);
+        key_buf[1] = ' ';
+        key_buf[2] = ' ';
+    }
+}
+
 //自定义键值
 bool process_record_user(uint16_t keycode, keyrecord_t* record) {
+    keylog_add(keycode, record);
     switch (keycode) {
         // toggle auto mouse enable key
         case AUTO_MODE_TOGGLE:
@@ -746,6 +813,9 @@ static void master_data(void) {
             char wpm_str[6];
             snprintf(wpm_str, sizeof(wpm_str), "%d", m);
             oled_write(wpm_str, false);
+            oled_set_cursor(0, 1);
+            oled_write_P(PSTR("KEY:"), false);
+            oled_write(key_buf, false);
    }
 
 
