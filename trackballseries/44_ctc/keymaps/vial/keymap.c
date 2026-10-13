@@ -3,6 +3,7 @@
 
 
 #include QMK_KEYBOARD_H
+#include "transactions.h"
 
 #ifdef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
 #    include "timer.h"
@@ -55,8 +56,12 @@ typedef union {
 //2的数字范围是从0到3， 4是16位，5是0-31位，6是即0到63。
 static auto_config_t user_config;
 
+static void key_sync_handler(uint8_t in_buflen, const void *in_data, uint8_t out_buflen, void *out_data);
+static char key_buf[4] = "   ";
+
 void keyboard_post_init_user(void){
     user_config.raw1 = eeconfig_read_user();
+    transaction_register_rpc(USER_SYNC_KEY, key_sync_handler);
 }
 
 void eeconfig_init_user(void){
@@ -256,26 +261,30 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 void rgb_matrix_update_pwm_buffers(void);
 #endif
 
-// Log last pressed key on bongocat animation screen
-static char key_buf[4] = "   ";   // 3 visible chars + NUL
-
 // HID keycodes 0x00-0x38 -> display character
 static const char PROGMEM code_to_char[] = 
     "????ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890>*<^_-=[]\\#;'`,./";
 
 // copy a flash string into key_buf, padded with spaces to 3 chars
 static void set_key(const char *s) {
-    bool end = false;
-    for (uint8_t i = 0; i < 3; i++) {
-        char c = end ? ' ' : (char)pgm_read_byte(s + i);
-        if (c == '\0') {
-            end = true;
-            c = ' ';
-        }
-        key_buf[i] = c;
+    char temp[4];
+    snprintf(temp, sizeof(temp), "%s", s);
+    uint8_t len = 0;
+    while (temp[len] != '\0' && len < 3) {
+        len++;
     }
+    int8_t left_padding = (3 - len) / 2;
+    if (left_padding < 0) left_padding = 0;
+    
+    for (uint8_t i = 0; i < 3; i++) {
+        if (i >= left_padding && i < left_padding + len) {
+            key_buf[i] = temp[i - left_padding];
+        } else {
+            key_buf[i] = ' ';
+        }
+    }
+    key_buf[3] = '\0';
 }
-#define SHOW(s) set_key(PSTR(s))
 
 static void keylog_add(uint16_t keycode, keyrecord_t *record) {
     if (!record->event.pressed) return;
@@ -293,38 +302,57 @@ static void keylog_add(uint16_t keycode, keyrecord_t *record) {
 
     // Special keys get a short label
     switch (keycode) {
-        case KC_ENT:  SHOW("ENT"); return;
-        case KC_ESC:  SHOW("ESC"); return;
-        case KC_BSPC: SHOW("BSP"); return;
-        case KC_TAB:  SHOW("TAB"); return;
-        case KC_SPC:  SHOW("SPC"); return;
-        case KC_PSCR: SHOW("PRT"); return;
-        case KC_UP:   SHOW("UP");  return;
-        case KC_DOWN: SHOW("DWN"); return;
-        case KC_LEFT: SHOW("LFT"); return;
-        case KC_RGHT: SHOW("RGT"); return;
+        case KC_ENT:  set_key("ENT"); return;
+        case KC_ESC:  set_key("ESC"); return;
+        case KC_BSPC: set_key("BSP"); return;
+        case KC_TAB:  set_key("TAB"); return;
+        case KC_SPC:  set_key("SPC"); return;
+        case KC_PSCR: set_key("PRT"); return;
+        case KC_UP:   set_key("UP");  return;
+        case KC_DOWN: set_key("DWN"); return;
+        case KC_LEFT: set_key("LFT"); return;
+        case KC_RGHT: set_key("RGT"); return;
     }
 
     // F1-F12
     if (keycode >= KC_F1 && keycode <= KC_F12) {
-        snprintf(key_buf, sizeof(key_buf), "F%u", (unsigned)(keycode - KC_F1 + 1));
-        for (uint8_t i = 0; i < 3; i++) {
-            if (!key_buf[i]) key_buf[i] = ' ';
-        }
+        char f_str[4];
+        snprintf(f_str, sizeof(f_str), "F%u", (unsigned)(keycode - KC_F1 + 1));
+        set_key(f_str);
         return;
     }
 
     // Letters, numbers, punctuation
     if (keycode >= 4 && keycode <= 0x38) {
-        key_buf[0] = pgm_read_byte(&code_to_char[keycode]);
-        key_buf[1] = ' ';
-        key_buf[2] = ' ';
+        char c_str[2] = { (char)pgm_read_byte(&code_to_char[keycode]), '\0' };
+        set_key(c_str);
+    }
+}
+
+static bool key_dirty = false;
+
+// runs on the slave: receive the 3 chars from the master
+static void key_sync_handler(uint8_t in_buflen, const void *in_data, uint8_t out_buflen, void *out_data) {
+    if (in_buflen >= 3) {
+        memcpy(key_buf, in_data, 3);
+    }
+}
+
+// runs on the master: send the key when it changes
+void housekeeping_task_user(void) {
+    if (is_keyboard_master() && key_dirty) {
+        if (transaction_rpc_send(USER_SYNC_KEY, 3, key_buf)) {
+            key_dirty = false;
+        }
     }
 }
 
 //自定义键值
 bool process_record_user(uint16_t keycode, keyrecord_t* record) {
+    char old_key[3];
+    memcpy(old_key, key_buf, 3);
     keylog_add(keycode, record);
+    if (memcmp(old_key, key_buf, 3) != 0) key_dirty = true;
     switch (keycode) {
         // toggle auto mouse enable key
         case AUTO_MODE_TOGGLE:
@@ -405,14 +433,6 @@ oled_rotation_t oled_init_user(oled_rotation_t rotation) {
 
 void render_space(void) {
     oled_write_P(PSTR("     "), false);
-}
-
-
-void render_logo(void) {
-        oled_write_P(PSTR("Key  "), false);
-        oled_write_P(PSTR("ball "), false);
-        oled_write_P(PSTR("44   "), false);
-
 }
 
 void render_mod_status_gui_alt(uint8_t modifiers) {
@@ -722,7 +742,8 @@ static void render_luna(int LUNA_X, int LUNA_Y) {
 static void slave_data(void) {
     /* Print current mode */
 //    oled_set_cursor(0, 0);
-    render_logo();
+    oled_set_cursor(1, 1);          // column 1 of 5 = centered for 3 chars, middle of the old logo
+    oled_write(key_buf, false);
     oled_set_cursor(0, 4);
 
     render_mod_status_gui_alt(get_mods());
@@ -813,9 +834,6 @@ static void master_data(void) {
             char wpm_str[6];
             snprintf(wpm_str, sizeof(wpm_str), "%d", m);
             oled_write(wpm_str, false);
-            oled_set_cursor(0, 1);
-            oled_write_P(PSTR("KEY:"), false);
-            oled_write(key_buf, false);
    }
 
 
