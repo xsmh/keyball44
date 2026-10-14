@@ -262,8 +262,10 @@ void rgb_matrix_update_pwm_buffers(void);
 #endif
 
 // HID keycodes 0x00-0x38 -> display character
-static const char PROGMEM code_to_char[] = 
-    "????ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890>*<^_-=[]\\#;'`,./";
+static const char PROGMEM code_to_char[] =
+    "????abcdefghijklmnopqrstuvwxyz1234567890>*<^_-=[]\\#;'`,./";
+static const char PROGMEM code_to_char_shift[] =
+    "????ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()>*<^__+{}|~:\"~<>?";
 
 // copy a flash string into key_buf, padded with spaces to 3 chars
 static void set_key(const char *s) {
@@ -289,14 +291,19 @@ static void set_key(const char *s) {
 static void keylog_add(uint16_t keycode, keyrecord_t *record) {
     if (!record->event.pressed) return;
 
+    // shift held, or one-shot shift pending
+    bool shift = (get_mods() | get_oneshot_mods()) & MOD_MASK_SHIFT;
+
     // Tap-hold keys: only log when tapped, not held
     if ((keycode >= QK_MOD_TAP && keycode <= QK_MOD_TAP_MAX) ||
         (keycode >= QK_LAYER_TAP && keycode <= QK_LAYER_TAP_MAX)) {
         if (record->tap.count == 0) return;
         keycode &= 0xFF;
     }
-    // Shifted/modded keys like S(KC_7)
+
+    // Keys like S(KC_7): grab the shift bit BEFORE stripping the modifier
     if (keycode >= QK_MODS && keycode <= QK_MODS_MAX) {
+        if ((keycode >> 8) & 0x02) shift = true;   // 0x02 = shift bit
         keycode &= 0xFF;
     }
 
@@ -324,7 +331,11 @@ static void keylog_add(uint16_t keycode, keyrecord_t *record) {
 
     // Letters, numbers, punctuation
     if (keycode >= 4 && keycode <= 0x38) {
-        char c_str[2] = { (char)pgm_read_byte(&code_to_char[keycode]), '\0' };
+        // Caps Lock flips case for letters only
+        if (keycode <= KC_Z && host_keyboard_led_state().caps_lock) shift = !shift;
+
+        const char *table = shift ? code_to_char_shift : code_to_char;
+        char c_str[2] = { (char)pgm_read_byte(&table[keycode]), '\0' };
         set_key(c_str);
     }
 }
